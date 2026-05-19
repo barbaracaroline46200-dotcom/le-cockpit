@@ -1426,9 +1426,10 @@ select.inp option{background:var(--white)}
     </div>
     <div class="frow"><label class="inp-label">Date limite</label><input class="inp" type="date" id="ct-dl"></div>
     <div class="frow"><label class="inp-label">Note (optionnel)</label><input class="inp" id="ct-note" placeholder="Détails ou contexte..."></div>
+    <div id="ct-err" style="display:none;color:#ea392e;font-size:12px;padding:6px 0"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-g" onclick="closeM('m-add-task')">Annuler</button>
-      <button class="btn btn-p" onclick="addCustomTask()">Ajouter la tâche</button>
+      <button class="btn btn-p" id="ct-add-btn" onclick="addCustomTask()">Ajouter la tâche</button>
     </div>
   </div>
 </div>
@@ -4002,7 +4003,12 @@ ${iban?`<div style="background:#f9fafb;border-radius:6px;padding:12px 14px;margi
 
 function addCustomTask(){
   const text=document.getElementById('ct-text').value.trim();
-  if(!text){alert('La tâche ne peut pas être vide');return;}
+  const errEl=document.getElementById('ct-err');
+  if(!text){
+    if(errEl){errEl.style.display='block';errEl.textContent='⚠️ Le nom de la tâche est obligatoire.';}
+    return;
+  }
+  if(errEl) errEl.style.display='none';
   const dlRaw=document.getElementById('ct-dl').value;
   const dl=dlRaw?new Date(dlRaw).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'—';
   const task={
