@@ -5301,8 +5301,12 @@ async function doLogin(){
   if(!email||!pwd){showLoginErr('Remplis tous les champs.');return;}
   const btn=document.getElementById('login-btn');
   btn.textContent='Connexion…';btn.disabled=true;
-  const{error}=await _supa.auth.signInWithPassword({email,password:pwd});
-  if(error){showLoginErr('Email ou mot de passe incorrect.');btn.textContent='Se connecter';btn.disabled=false;}
+  try{
+    const{data,error}=await _supa.auth.signInWithPassword({email,password:pwd});
+    if(error){showLoginErr(error.message);btn.textContent='Se connecter';btn.disabled=false;}
+  }catch(e){
+    showLoginErr('Erreur : '+e.message);btn.textContent='Se connecter';btn.disabled=false;
+  }
 }
 
 async function doSignup(){
