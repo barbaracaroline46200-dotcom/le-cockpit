@@ -60,6 +60,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;display:flex;fo
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--cream-2)}
 ::-webkit-scrollbar-thumb{background:rgba(51,48,175,.25);border-radius:99px}
+[onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 
 /* ── SIDEBAR ── */
 #sidebar{width:224px;min-width:224px;background:var(--purple-dark);border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;}
@@ -5252,7 +5253,7 @@ function rProsKanban(){
         ${items.map(p=>`
         <div draggable="true"
           ondragstart="draggingProsId='${p.id}'"
-          onclick="openPDetail('${p.id}')"
+          onclick="openPD('${p.id}')"
           style="background:var(--card);border-radius:var(--rs);padding:10px 12px;cursor:grab;border:1px solid var(--b1);transition:box-shadow .15s"
           onmousedown="this.style.boxShadow='0 4px 12px rgba(0,0,0,.2)'"
           onmouseup="this.style.boxShadow=''">
