@@ -2594,8 +2594,14 @@ function addNote(){
   const typeEl=document.getElementById('mpd-exch-type');
   const type=typeEl?typeEl.value:'note';
   p.history.push({date:new Date().toLocaleDateString('fr-FR'),type,text:val});
-  document.getElementById('mpd-note-in').value='';
+  const inp=document.getElementById('mpd-note-in');
+  inp.value='';
   sv(); rPHist(id);
+  // Feedback mobile : scroll vers l'historique + confirmation
+  const histEl=document.getElementById('mpd-hist');
+  if(histEl){histEl.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  inp.placeholder='✓ Note ajoutée !';
+  setTimeout(()=>{inp.placeholder='Ajouter un échange…';},2000);
 }
 
 /* ── STATUTS & LABELS ── */
