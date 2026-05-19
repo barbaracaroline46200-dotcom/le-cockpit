@@ -1049,6 +1049,20 @@ select.inp option{background:var(--white)}
       <div style="font-size:11px;color:var(--t3);margin-top:8px">PNG ou JPG recommandé · Format paysage idéal · Apparaîtra sur les devis et factures</div>
     </div>
 
+    <!-- Bloc 4 : Signature -->
+    <div class="card">
+      <div class="card-title">✍️ Signature</div>
+      <div id="reg-sign-preview" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="btn btn-g btn-sm" style="cursor:pointer">
+          📁 Choisir une image
+          <input type="file" accept="image/*" style="display:none" onchange="saveSignature(this)">
+        </label>
+        <button class="btn btn-d btn-sm" onclick="deleteSignature()" id="reg-sign-del" style="display:none">🗑 Supprimer</button>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:8px">Photo de ta signature manuscrite (PNG fond blanc ou transparent) · Apparaîtra automatiquement dans la case Prestataire des devis</div>
+    </div>
+
   </div>
 </div>
 
@@ -1893,7 +1907,7 @@ function initS(saved){
     projets:saved.projets||[],
     paiements:saved.paiements||[],
     devis:saved.devis||[],
-    reglages:saved.reglages||{nom:'Studio Boost 46',forme:'Auto-entrepreneur',siret:'',adresse:'Souillac (46200)',email:'contact@studioboost46.com',tel:'',siteUrl:'studioboost46.com',iban:'',tva:false,tvaTaux:20,tauxProvision:22,logo:null},
+    reglages:saved.reglages||{nom:'Studio Boost 46',forme:'Auto-entrepreneur',siret:'',adresse:'Souillac (46200)',email:'contact@studioboost46.com',tel:'',siteUrl:'studioboost46.com',iban:'',tva:false,tvaTaux:20,tauxProvision:22,logo:null,signature:null},
     charges:saved.charges||[],
     completedTasks:saved.completedTasks||[],
     customTasks:saved.customTasks||[],
@@ -3491,6 +3505,15 @@ function rReglages(){
     prev.innerHTML='<div style="font-size:12px;color:var(--t4);font-style:italic">Aucun logo chargé</div>';
     if(delBtn) delBtn.style.display='none';
   }
+  const sprev=document.getElementById('reg-sign-preview');
+  const sdelBtn=document.getElementById('reg-sign-del');
+  if(r.signature){
+    sprev.innerHTML=`<img src="${r.signature}" style="max-height:80px;max-width:220px;border-radius:8px;border:2px solid var(--b1);padding:6px;background:#fff">`;
+    if(sdelBtn) sdelBtn.style.display='inline-flex';
+  } else {
+    sprev.innerHTML='<div style="font-size:12px;color:var(--t4);font-style:italic">Aucune signature chargée</div>';
+    if(sdelBtn) sdelBtn.style.display='none';
+  }
 }
 
 function saveReg(field,val){
@@ -3688,6 +3711,18 @@ function saveLogo(input){
 function deleteLogo(){
   if(!confirm('Supprimer le logo ?')) return;
   S.reglages.logo=null; sv(); rReglages();
+}
+
+function saveSignature(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{S.reglages.signature=e.target.result;sv();rReglages();};
+  reader.readAsDataURL(file);
+}
+
+function deleteSignature(){
+  if(!confirm('Supprimer la signature ?')) return;
+  S.reglages.signature=null; sv(); rReglages();
 }
 
 let curTpl='noSite';
@@ -3982,12 +4017,14 @@ function printDv(id){
   const siteUrl=r.siteUrl||'studioboost46.com';
   const tvaTexte=r.tva?`TVA ${r.tvaTaux||20}% applicable`:'TVA non applicable — Art. 293B du CGI';
   const logoHtml=r.logo?`<img src="${r.logo}" style="max-height:60px;max-width:160px;display:block;margin-bottom:6px">`:'';
+  const signHtml=r.signature?`<img src="${r.signature}" style="max-height:60px;max-width:160px;display:block;margin:8px 0">`:'';
   const validite=new Date(d.createdAt); validite.setDate(validite.getDate()+30);
   const a=Math.round(d.montant*.5);
   const p1=Math.round(d.montant*.3),p2=Math.round(d.montant*.35),p3=d.montant-p1-p2;
   const coordClient=[d.clientAddr,d.clientEmail,d.clientPhone].filter(Boolean).join('<br>')||'—';
   const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Devis ${d.num} — ${d.client}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a;font-size:13px;padding:40px;max-width:800px;margin:0 auto}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #14b8a6}.brand{font-size:24px;font-weight:800;color:#0d1f1e;letter-spacing:-.02em}.brand span{color:#14b8a6}.brand-info{font-size:11px;color:#666;margin-top:6px;line-height:1.8}.dv-num{font-size:20px;font-weight:800;color:#14b8a6;text-align:right}.dv-dates{font-size:11px;color:#888;margin-top:4px;text-align:right;line-height:1.7}.parties{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:28px;padding:20px;background:#f8fffe;border-radius:8px;border:1px solid #d1ede9}.partie-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#14b8a6;margin-bottom:6px}.partie-name{font-size:15px;font-weight:700;margin-bottom:3px}.partie-info{font-size:11px;color:#555;line-height:1.8}.obj-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin:20px 0 6px}.obj-val{font-size:15px;font-weight:700;color:#0d1f1e;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#0d1f1e;color:#fff;text-align:left;padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em}td{padding:12px 14px;border-bottom:1px solid #e5e7eb;font-size:13px}.total-row td{border-top:3px solid #14b8a6;border-bottom:none;font-size:16px;font-weight:800;color:#14b8a6}.pay-box{background:#f0faf9;border:1px solid #a8d8d2;border-radius:8px;padding:16px;margin-bottom:20px}.pay-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#14b8a6;margin-bottom:10px}.pay-line{font-size:13px;color:#333;padding:3px 0}.mentions{background:#f9fafb;border-radius:6px;padding:14px;font-size:10px;color:#6b7280;line-height:1.7;margin-bottom:24px}.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px}.sig-box{border:1px solid #e5e7eb;border-radius:8px;padding:18px}.sig-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;margin-bottom:8px}.sig-line{border-bottom:1.5px solid #d1d5db;height:72px;margin-top:14px}.sig-sub{font-size:10px;color:#9ca3af;margin-top:5px}.footer-bar{text-align:center;font-size:10px;color:#9ca3af;margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb}.no-print{display:inline-block}@media print{.no-print{display:none!important}body{padding:20px}}</style></head><body>
+<button class="no-print" onclick="window.close()" style="position:fixed;top:16px;left:16px;background:#6b7280;color:#fff;border:none;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer">← Retour</button>
 <button class="no-print" onclick="window.print()" style="position:fixed;top:16px;right:16px;background:#14b8a6;color:#fff;border:none;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(20,184,166,.35)">📥 Télécharger PDF</button>
 <div class="hdr"><div>${logoHtml}<div class="brand">${nom.replace('46','<span>46</span>')}</div><div class="brand-info">Barbara Benoit — Créatrice de sites web<br>${forme} — SIRET : ${siret}<br>${[adresse,tel,email,siteUrl].filter(Boolean).join(' · ')}</div></div><div><div class="dv-num">DEVIS ${d.num}</div><div class="dv-dates">Émis le : ${fmtD(d.createdAt)}<br>Valable jusqu'au : ${fmtD(validite.toISOString().split('T')[0])}</div></div></div>
 <div class="parties"><div><div class="partie-lbl">Prestataire</div><div class="partie-name">${nom}</div><div class="partie-info">Barbara Benoit<br>${adresse}${tel?'<br>'+tel:''}<br>${email}<br>${siteUrl}</div></div><div><div class="partie-lbl">Client</div><div class="partie-name">${d.client}</div><div class="partie-info">${coordClient}</div></div></div>
@@ -3995,10 +4032,10 @@ function printDv(id){
 <table><tr><th>Prestation</th><th>Description</th><th style="text-align:right;min-width:100px">Montant HT</th></tr>
 <tr><td style="font-weight:700">${d.formule}</td><td style="color:#555">Création de site web professionnel<br><span style="font-size:11px">Livraison sous 72h · 2 séries de corrections incluses · Hébergement 1ère année inclus</span></td><td style="text-align:right;font-weight:700">${d.montant} €</td></tr>
 ${d.maintenance?`<tr><td style="font-weight:700">Maintenance mensuelle</td><td style="color:#555">Mises à jour de sécurité, petites modifications, support prioritaire<br><span style="font-size:11px">Sans engagement de durée</span></td><td style="text-align:right;font-weight:700">29 € / mois</td></tr>`:''}
-<tr class="total-row"><td colspan="2">Total HT</td><td style="text-align:right">${d.montant} €</td></tr></table>
+<tr class="total-row"><td colspan="2">Total HT</td><td style="text-align:right">${d.montant} €${d.maintenance?' + 29 € /mois':''}</td></tr></table>
 <div class="pay-box"><div class="pay-title">💶 Conditions de paiement</div>${d.split?`<div class="pay-line">• 1er versement (30%) au démarrage : <strong>${p1} €</strong></div><div class="pay-line">• 2ème versement (35%) à mi-parcours : <strong>${p2} €</strong></div><div class="pay-line">• 3ème versement (35%) à la livraison : <strong>${p3} €</strong></div>`:`<div class="pay-line">• Acompte 50% à la signature : <strong>${a} €</strong></div><div class="pay-line">• Solde 50% à la livraison : <strong>${d.montant-a} €</strong></div>`}<div style="font-size:11px;color:#888;margin-top:8px">Paiement par virement bancaire ou chèque à l'ordre de Barbara Benoit.</div></div>
 <div class="mentions"><strong>Mentions légales :</strong> ${tvaTexte}. Tout acompte versé est acquis et non remboursable en cas d'annulation après démarrage des travaux. Les corrections demandées au-delà des 2 séries incluses feront l'objet d'une facturation complémentaire. En cas de retard de paiement, des pénalités de retard et une indemnité forfaitaire de recouvrement de 40 € seront exigibles (art. L.441-6 et D.441-5 C.com.). Le client dispose d'un délai de rétractation de 14 jours à compter de la signature du présent devis. En cas de litige, le tribunal compétent est celui de Cahors (46).</div>
-<div class="sig-grid"><div class="sig-box"><div class="sig-lbl">Bon pour accord — Client</div><div style="font-size:11px;color:#9ca3af">Lu et approuvé — Date, lieu et signature<br>précédés de la mention « Bon pour accord » :</div><div class="sig-line"></div><div class="sig-sub">${d.client}</div></div><div class="sig-box"><div class="sig-lbl">Prestataire</div><div style="font-size:11px;color:#9ca3af">Barbara Benoit — ${nom}</div><div class="sig-line"></div><div class="sig-sub">Émis le ${fmtD(d.createdAt)}</div></div></div>
+<div class="sig-grid"><div class="sig-box"><div class="sig-lbl">Bon pour accord — Client</div><div style="font-size:11px;color:#9ca3af">Lu et approuvé — Date, lieu et signature<br>précédés de la mention « Bon pour accord » :</div><div class="sig-line"></div><div class="sig-sub">${d.client}</div></div><div class="sig-box"><div class="sig-lbl">Prestataire</div><div style="font-size:11px;color:#9ca3af">Barbara Benoit — ${nom}</div>${signHtml?signHtml:'<div class="sig-line"></div>'}<div class="sig-sub">Émis le ${fmtD(d.createdAt)}</div></div></div>
 <div class="footer-bar">${nom} · Barbara Benoit · ${forme} · ${adresse} · ${siteUrl} · ${email}</div>
 </body></html>`;
   const w=window.open('','_blank'); w.document.write(html); w.document.close();
@@ -4024,6 +4061,7 @@ function genFacture(payId){
   const num='FAC-SB46-'+new Date().getFullYear()+'-'+String(S.paiements.filter(x=>x.paid).indexOf(pay)+1).padStart(3,'0');
   const html=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Facture ${num} — ${pay.client}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a;font-size:13px;padding:40px;max-width:800px;margin:0 auto}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #10b981}.brand{font-size:24px;font-weight:800;color:#0d1f1e}.brand span{color:#10b981}.brand-info{font-size:11px;color:#666;margin-top:6px;line-height:1.8}.fac-num{font-size:20px;font-weight:800;color:#10b981;text-align:right}.fac-dates{font-size:11px;color:#888;margin-top:4px;text-align:right;line-height:1.7}.parties{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:28px;padding:20px;background:#f0fdf9;border-radius:8px;border:1px solid #a7f3d0}.partie-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#10b981;margin-bottom:6px}.partie-name{font-size:15px;font-weight:700;margin-bottom:3px}.partie-info{font-size:11px;color:#555;line-height:1.8}table{width:100%;border-collapse:collapse;margin:20px 0}th{background:#0d1f1e;color:#fff;text-align:left;padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em}td{padding:12px 14px;border-bottom:1px solid #e5e7eb;font-size:13px}.total-row td{border-top:3px solid #10b981;border-bottom:none;font-size:16px;font-weight:800;color:#10b981}.paid-box{background:#f0fdf9;border:2px solid #10b981;border-radius:8px;padding:20px;margin:20px 0;text-align:center}.paid-txt{font-size:22px;font-weight:800;color:#10b981}.paid-sub{font-size:13px;color:#555;margin-top:5px}.mentions{background:#f9fafb;border-radius:6px;padding:14px;font-size:10px;color:#6b7280;line-height:1.7;margin-top:20px}.footer-bar{text-align:center;font-size:10px;color:#9ca3af;margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb}.no-print{display:inline-block}@media print{.no-print{display:none!important}body{padding:20px}}</style></head><body>
+<button class="no-print" onclick="window.close()" style="position:fixed;top:16px;left:16px;background:#6b7280;color:#fff;border:none;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer">← Retour</button>
 <button class="no-print" onclick="window.print()" style="position:fixed;top:16px;right:16px;background:#10b981;color:#fff;border:none;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35)">📥 Télécharger PDF</button>
 <div class="hdr"><div>${logoHtml}<div class="brand">${nom.replace('46','<span>46</span>')}</div><div class="brand-info">Barbara Benoit — Créatrice de sites web<br>${forme} — SIRET : ${siret}<br>${coordPrest}</div></div><div><div class="fac-num">FACTURE ${num}</div><div class="fac-dates">Date d'émission : ${new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}${pay.dueDate?'<br>Échéance : '+fmtD(pay.dueDate):''}<br>Paiement reçu le : ${pay.paidDate||'—'}</div></div></div>
 <div class="parties"><div><div class="partie-lbl">Prestataire</div><div class="partie-name">${nom}</div><div class="partie-info">Barbara Benoit<br>${adresse}${tel?'<br>'+tel:''}<br>${email}<br>${siteUrl}</div></div><div><div class="partie-lbl">Client</div><div class="partie-name">${pay.client}</div><div class="partie-info">${clientCoord||'—'}</div></div></div>
