@@ -5258,41 +5258,70 @@ function prosDrop(newStatus,event){
 }
 
 /* ── AUTH & SUPABASE ── */
+const AUTH_URL=SUPABASE_URL+'/auth/v1';
+const SESS_KEY='cockpit_sess';
+
+async function authFetch(path,opts={}){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),10000);
+  try{
+    const r=await fetch(AUTH_URL+path,{...opts,signal:ctrl.signal,headers:{...opts.headers,'apikey':SUPABASE_KEY,'Content-Type':'application/json'}});
+    clearTimeout(tid);
+    return r;
+  }catch(e){clearTimeout(tid);throw e;}
+}
+
 async function initApp(){
   _supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  _supa.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session){
-      _user=session.user;
-      await loadFromSupa();
-      hideLogin();
-    } else if(event==='SIGNED_OUT'){
-      _user=null;
-      showLoginScreen();
-    }
-  });
-  const{data:{session}}=await _supa.auth.getSession();
-  if(session){
-    _user=session.user;
-    await loadFromSupa();
-    hideLogin();
+  const stored=localStorage.getItem(SESS_KEY);
+  if(stored){
+    try{
+      const sess=JSON.parse(stored);
+      const r=await authFetch('/user',{headers:{'Authorization':'Bearer '+sess.access_token}});
+      if(r.ok){
+        _user=await r.json();
+        _user._token=sess.access_token;
+        _user._refresh=sess.refresh_token;
+        await _supa.auth.setSession({access_token:sess.access_token,refresh_token:sess.refresh_token}).catch(()=>{});
+        await loadFromSupa();
+        hideLogin();
+        return;
+      }
+    }catch(e){}
+    localStorage.removeItem(SESS_KEY);
   }
 }
 
 async function loadFromSupa(){
-  const{data,error}=await _supa.from('cockpit_data').select('data').eq('user_id',_user.id).maybeSingle();
-  if(data&&data.data){
-    initS(data.data);
-  } else {
-    sv(); // première connexion : migre localStorage → Supabase
-  }
-  rDash(); rSidebar();
+  try{
+    const tok=_user?._token||'';
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/cockpit_data?user_id=eq.${_user.id}&select=data`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+tok,'Accept':'application/json'}
+    });
+    const rows=await r.json();
+    if(rows&&rows[0]&&rows[0].data){
+      initS(rows[0].data);
+    } else {
+      sv();
+    }
+  }catch(e){}
+  rDash();rSidebar();
 }
 
-function hideLogin(){
-  document.getElementById('login-screen').style.display='none';
+function hideLogin(){document.getElementById('login-screen').style.display='none';}
+function showLoginScreen(){document.getElementById('login-screen').style.display='flex';}
+
+function showLoginErr(msg){
+  const el=document.getElementById('login-error');
+  if(!el){alert(msg);return;}
+  el.style.cssText='display:block;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;background:rgba(234,57,46,.12);color:#ea392e';
+  el.textContent=msg;
 }
-function showLoginScreen(){
-  document.getElementById('login-screen').style.display='flex';
+function showLoginMsg(msg){
+  const el=document.getElementById('login-error');
+  if(!el){alert(msg);return;}
+  el.style.cssText='display:block;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;background:rgba(90,158,47,.12);color:#5a9e2f';
+  el.textContent=msg;
 }
 
 async function doLogin(){
@@ -5303,20 +5332,19 @@ async function doLogin(){
   btn.textContent='Connexion…';btn.disabled=true;
   const reset=()=>{btn.textContent='Se connecter';btn.disabled=false;};
   try{
-    if(!_supa){showLoginErr('Erreur de configuration Supabase.');reset();return;}
-    const tout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Délai dépassé — vérifie ta connexion.')),10000));
-    const auth=_supa.auth.signInWithPassword({email,password:pwd});
-    const{data,error}=await Promise.race([auth,tout]);
-    if(error){showLoginErr(error.message);reset();}
+    const r=await authFetch('/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password:pwd})});
+    const result=await r.json();
+    if(!r.ok||result.error||result.error_code){
+      showLoginErr(result.msg||result.error||'Identifiants incorrects.');reset();return;
+    }
+    localStorage.setItem(SESS_KEY,JSON.stringify({access_token:result.access_token,refresh_token:result.refresh_token}));
+    _user=result.user;_user._token=result.access_token;_user._refresh=result.refresh_token;
+    await _supa.auth.setSession({access_token:result.access_token,refresh_token:result.refresh_token}).catch(()=>{});
+    await loadFromSupa();
+    hideLogin();
   }catch(e){
-    showLoginErr(e.message||'Erreur inconnue.');reset();
+    showLoginErr(e.name==='AbortError'?'Délai dépassé — vérifie ta connexion.':e.message||'Erreur inconnue.');reset();
   }
-}
-function showLoginErr(msg){
-  const el=document.getElementById('login-error');
-  if(!el){alert(msg);return;}
-  el.style.cssText='display:block;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;background:rgba(234,57,46,.12);color:#ea392e';
-  el.textContent=msg;
 }
 
 async function doSignup(){
@@ -5326,27 +5354,20 @@ async function doSignup(){
   if(pwd.length<6){showLoginErr('Le mot de passe doit faire au moins 6 caractères.');return;}
   const btn=document.getElementById('login-btn');
   btn.textContent='Création…';btn.disabled=true;
-  const{error}=await _supa.auth.signUp({email,password:pwd});
-  if(error){showLoginErr(error.message);btn.textContent='Créer mon compte';btn.disabled=false;}
-  else{showLoginMsg('Compte créé ! Vérifie tes emails pour confirmer.');}
+  const reset=()=>{btn.textContent='Créer mon compte';btn.disabled=false;};
+  try{
+    const r=await authFetch('/signup',{method:'POST',body:JSON.stringify({email,password:pwd})});
+    const result=await r.json();
+    if(!r.ok||result.error){showLoginErr(result.msg||result.error||'Erreur.');reset();return;}
+    showLoginMsg('Compte créé ! Tu peux maintenant te connecter.');
+    toggleLoginMode();
+  }catch(e){showLoginErr(e.message||'Erreur.');reset();}
 }
 
 async function doLogout(){
   if(!confirm('Se déconnecter ?'))return;
-  await _supa.auth.signOut();
-}
-
-function showLoginErr(msg){
-  const el=document.getElementById('login-error');
-  el.style.display='block';
-  el.style.background='var(--redbg)';el.style.color='var(--red)';
-  el.textContent=msg;
-}
-function showLoginMsg(msg){
-  const el=document.getElementById('login-error');
-  el.style.display='block';
-  el.style.background='var(--greenbg)';el.style.color='var(--green)';
-  el.textContent=msg;
+  localStorage.removeItem(SESS_KEY);
+  _user=null;showLoginScreen();
 }
 
 function toggleLoginMode(){
