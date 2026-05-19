@@ -5298,15 +5298,25 @@ function showLoginScreen(){
 async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pwd=document.getElementById('login-pwd').value;
-  if(!email||!pwd){showLoginErr('Remplis tous les champs.');return;}
   const btn=document.getElementById('login-btn');
+  if(!email||!pwd){showLoginErr('Remplis tous les champs.');return;}
   btn.textContent='Connexion…';btn.disabled=true;
+  const reset=()=>{btn.textContent='Se connecter';btn.disabled=false;};
   try{
-    const{data,error}=await _supa.auth.signInWithPassword({email,password:pwd});
-    if(error){showLoginErr(error.message);btn.textContent='Se connecter';btn.disabled=false;}
+    if(!_supa){showLoginErr('Erreur de configuration Supabase.');reset();return;}
+    const tout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Délai dépassé — vérifie ta connexion.')),10000));
+    const auth=_supa.auth.signInWithPassword({email,password:pwd});
+    const{data,error}=await Promise.race([auth,tout]);
+    if(error){showLoginErr(error.message);reset();}
   }catch(e){
-    showLoginErr('Erreur : '+e.message);btn.textContent='Se connecter';btn.disabled=false;
+    showLoginErr(e.message||'Erreur inconnue.');reset();
   }
+}
+function showLoginErr(msg){
+  const el=document.getElementById('login-error');
+  if(!el){alert(msg);return;}
+  el.style.cssText='display:block;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;background:rgba(234,57,46,.12);color:#ea392e';
+  el.textContent=msg;
 }
 
 async function doSignup(){
