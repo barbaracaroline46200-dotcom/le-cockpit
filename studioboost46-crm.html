@@ -5401,9 +5401,20 @@ async function loadFromSupa(){
       const supaTs=rows[0].updated_at||'';
       const localTs=localStorage.getItem('sb46_ts')||'';
       if(localTs>supaTs){
-        // localStorage plus récent (sauvegarde Supabase pas encore complète) → on l'utilise et on re-synchro
-        initS(ldLocal());
-        sv();
+        // localStorage plus récent → on l'utilise et on re-synchro
+        initS(ldLocal()); sv();
+      } else if(!localTs){
+        // Première fois avec le nouveau système : fusion intelligente locale+supa
+        const local=ldLocal();
+        const supa=rows[0].data;
+        if(local&&local.reglages){
+          const reg={...supa.reglages};
+          Object.keys(local.reglages).forEach(k=>{if(local.reglages[k]&&!reg[k])reg[k]=local.reglages[k];});
+          supa.reglages=reg;
+        }
+        if(local&&(local.devis||[]).length>(supa.devis||[]).length) supa.devis=local.devis;
+        if(local&&(local.charges||[]).length>(supa.charges||[]).length) supa.charges=local.charges;
+        initS(supa); sv();
       } else {
         initS(rows[0].data);
       }
