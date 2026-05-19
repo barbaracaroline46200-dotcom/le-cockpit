@@ -2081,10 +2081,13 @@ function saveObj(){
 }
 
 /* ── TÂCHES DU JOUR ── */
+function togCalEdDash(dateStr,type){togCalEd(dateStr,type);rTachesJour();}
+
 function rTachesJour(){
   const el=document.getElementById('dash-taches'); if(!el) return;
   const today=new Date(); today.setHours(0,0,0,0);
   const todayStr=today.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const todayIso=today.toISOString().slice(0,10);
 
   const fixedToday=TASKS.filter(t=>{
     if(S.completedTasks.includes(t.id)) return false;
@@ -2098,18 +2101,29 @@ function rTachesJour(){
   });
   const all=[...fixedToday,...customToday];
 
-  const cntEl=document.getElementById('dash-taches-count');
-  if(cntEl) cntEl.textContent=all.length?all.length+' tâche'+(all.length>1?'s':''):'';
+  // Posts réseaux sociaux du jour (Calendrier éditorial)
+  const todayIdx=[6,0,1,2,3,4,5][today.getDay()];
+  const persoPost=CAL_PERSO[todayIdx];
+  const pepPost=CAL_PEPITES[todayIdx];
+  const calItems=[];
+  if(!persoPost.off&&!isEffDone(todayIso,'perso'))
+    calItems.push({key:'perso',ic:'📘',txt:persoPost.title,note:'Profil perso & Page Facebook'});
+  if(!pepPost.off&&!isEffDone(todayIso,'pepites'))
+    calItems.push({key:'pepites',ic:'⭐',txt:pepPost.title,note:'Groupe Pépites de Souillac'});
 
-  if(!all.length){
+  const total=all.length+calItems.length;
+  const cntEl=document.getElementById('dash-taches-count');
+  if(cntEl) cntEl.textContent=total?total+' tâche'+(total>1?'s':''):'';
+
+  if(!total){
     el.innerHTML='<div style="color:var(--t3);font-size:13px;padding:6px 0">Aucune tâche prévue pour aujourd\'hui ✨</div>';
     return;
   }
-  el.innerHTML=all.map(t=>{
+  const taskHtml=all.map(t=>{
     const done=S.completedTasks.includes(t.id);
     const prCol=t.pr==='high'?'var(--red)':t.pr==='med'?'var(--gold)':'var(--green)';
     return`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--b1)">
-      <div onclick="togTask('${t.id}')" style="width:18px;height:18px;border-radius:5px;flex-shrink:0;cursor:pointer;border:${done?'none':'2px solid var(--b2)'};background:${done?'var(--lime)':'transparent'};display:flex;align-items:center;justify-content:center;box-shadow:${done?'2px 2px 0 var(--purple-dark)':'none'}">
+      <div onclick="togTask('${t.id}')" style="width:18px;height:18px;border-radius:5px;flex-shrink:0;cursor:pointer;touch-action:manipulation;border:${done?'none':'2px solid var(--b2)'};background:${done?'var(--lime)':'transparent'};display:flex;align-items:center;justify-content:center;box-shadow:${done?'2px 2px 0 var(--purple-dark)':'none'}">
         ${done?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="2,5 4,7.5 8,2.5" stroke="var(--purple-dark)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>':''}
       </div>
       <span style="font-size:15px;flex-shrink:0">${t.ic||'📌'}</span>
@@ -2120,6 +2134,17 @@ function rTachesJour(){
       <div style="width:7px;height:7px;border-radius:50%;background:${prCol};flex-shrink:0"></div>
     </div>`;
   }).join('');
+  const calHtml=calItems.map(c=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--b1)">
+      <div onclick="togCalEdDash('${todayIso}','${c.key}')" style="width:18px;height:18px;border-radius:5px;flex-shrink:0;cursor:pointer;touch-action:manipulation;border:2px solid var(--b2);background:transparent;display:flex;align-items:center;justify-content:center"></div>
+      <span style="font-size:15px;flex-shrink:0">${c.ic}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.txt}</div>
+        <div style="font-size:11px;color:var(--t4);margin-top:1px">${c.note}</div>
+      </div>
+      <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0"></div>
+    </div>`).join('');
+  el.innerHTML=taskHtml+calHtml;
 }
 
 function rObjectifs(){
