@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Le Cockpit · Studio Boost 46</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -652,7 +652,7 @@ select.inp option{background:var(--white)}
 <div id="page-devis" class="page">
   <div class="page-header">
     <div><div class="page-title">Argent</div><div class="page-sub">Devis · génère et suis tes devis clients</div></div>
-    <button class="btn btn-p" onclick="openM('m-new-dv')">+ Nouveau devis</button>
+    <button class="btn btn-p" onclick="openNewDvModal()">+ Nouveau devis</button>
   </div>
   <div class="sec-nav">
     <button class="sec-nav-item" id="sn-paiements2" onclick="navTo('paiements','argent')">💰 Paiements</button>
@@ -694,6 +694,7 @@ select.inp option{background:var(--white)}
         </select>
         <button class="btn btn-p btn-sm" onclick="addCharge()">+ Ajouter</button>
       </div>
+      <div id="ch-err" style="display:none;color:var(--red);font-size:12px;margin-top:6px">⚠️ Remplis le libellé et le montant.</div>
     </div>
   </div>
   <!-- Solde prévisionnel -->
@@ -1439,7 +1440,8 @@ select.inp option{background:var(--white)}
   <div class="modal">
     <div class="modal-hd"><div class="modal-title">📋 Nouveau devis</div><button class="btn btn-g btn-sm" onclick="closeM('m-new-dv')">✕</button></div>
     <div class="fgrid">
-  <div class="frow"><label class="inp-label">Client *</label><input class="inp" id="dv-client" placeholder="Nom du client"></div>
+  <div class="frow"><label class="inp-label">Client *</label><select class="inp" id="dv-client" onchange="dvClientChange()"><option value="">— Choisir un prospect —</option></select></div>
+  <div id="dv-client-other-row" style="display:none"><div class="frow"><label class="inp-label">Nom du client</label><input class="inp" id="dv-client-other" placeholder="Nom du client..."></div></div>
   <div class="frow"><label class="inp-label">Formule *</label>
   <select class="inp" id="dv-form"><option value="290">Essentiel — 290€</option><option value="590" selected>Pro — 590€</option><option value="890">Pro+ — 890€</option></select>
   </div>
@@ -2830,19 +2832,46 @@ function rProsDevis(id){
   }).join('');
 }
 
+function openNewDvModal(){
+  const sel=document.getElementById('dv-client');
+  if(!sel) return;
+  const sorted=[...S.prospects].filter(p=>p.status!=='perdu').sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  sel.innerHTML='<option value="">— Choisir un prospect —</option>'
+    +sorted.map(p=>`<option value="${p.name.replace(/"/g,'&quot;')}">${p.name}${p.sector?' · '+p.sector:''}</option>`).join('')
+    +'<option value="__other__">✏️ Autre client...</option>';
+  const r=document.getElementById('dv-client-other-row');if(r)r.style.display='none';
+  openM('m-new-dv');
+}
+
+function dvClientChange(){
+  const val=document.getElementById('dv-client').value;
+  const r=document.getElementById('dv-client-other-row');
+  if(val==='__other__'){if(r)r.style.display='';return;}
+  if(r)r.style.display='none';
+  const p=S.prospects.find(x=>x.name===val);
+  if(p){
+    const f=id=>document.getElementById(id);
+    if(f('dv-cemail'))f('dv-cemail').value=p.email||'';
+    if(f('dv-cphone'))f('dv-cphone').value=p.phone||'';
+    if(f('dv-caddr'))f('dv-caddr').value=p.address||'';
+  }
+}
+
 function openNewDevisForPros(){
   const id=S._pid; if(!id) return;
   const p=S.prospects.find(x=>x.id===id); if(!p) return;
   S._pendingDevisProspectId=id;
   closeM('m-pros-detail');
   goTo('devis');
-  openM('m-new-dv');
+  openNewDvModal();
   setTimeout(()=>{
+    const sel=document.getElementById('dv-client');
+    if(sel) sel.value=p.name;
+    dvClientChange();
     const f=n=>document.getElementById(n);
-    if(f('dv-client')) f('dv-client').value=p.name;
-    if(f('dv-cemail')) f('dv-cemail').value=p.email||'';
-    if(f('dv-cphone')) f('dv-cphone').value=p.phone||'';
-    if(f('dv-caddr')) f('dv-caddr').value=p.address||'';
+    if(f('dv-cemail'))f('dv-cemail').value=p.email||'';
+    if(f('dv-cphone'))f('dv-cphone').value=p.phone||'';
+    if(f('dv-caddr'))f('dv-caddr').value=p.address||'';
   },80);
 }
 
@@ -2992,8 +3021,9 @@ function addPros(){
   const name=document.getElementById('np-name').value.trim();
   const sector=document.getElementById('np-sector').value.trim();
   if(!name||!sector){alert('Nom et secteur obligatoires');return;}
+  const newId=uid();
   S.prospects.push({
-    id:uid(),name,sector,
+    id:newId,name,sector,
     phone:document.getElementById('np-phone').value.trim(),
     email:document.getElementById('np-email').value.trim(),
     address:document.getElementById('np-addr').value.trim(),
@@ -3007,6 +3037,7 @@ function addPros(){
   });
   sv(); closeM('m-add-p'); rPros();
   ['np-name','np-sector','np-phone','np-email','np-addr','np-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  openPD(newId);
 }
 
 function rProjets(){rKanban();rPjList();}
@@ -3630,7 +3661,9 @@ function addCharge(){
   const label=document.getElementById('ch-label').value.trim();
   const amount=parseFloat(document.getElementById('ch-amount').value);
   const type=document.getElementById('ch-type').value;
-  if(!label||!amount||amount<=0)return;
+  const errEl=document.getElementById('ch-err');
+  if(!label||!amount||amount<=0){if(errEl){errEl.style.display='block';setTimeout(()=>errEl.style.display='none',3000);}return;}
+  if(errEl)errEl.style.display='none';
   const m=getTresoMonth();
   const key=m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0');
   if(!S.charges)S.charges=[];
@@ -3863,13 +3896,14 @@ function rDevis(){
   </div>
     </div>`;
   });
-  document.getElementById('dv-list').innerHTML=h||`<div class="card" style="text-align:center;padding:32px"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:6px">Aucun devis pour l'instant</div><div style="font-size:13px;color:var(--t4);margin-bottom:16px">Génère ton premier devis en 30 secondes</div><button class="btn btn-p btn-sm" onclick="openM('m-new-dv')">+ Nouveau devis</button></div>`;
+  document.getElementById('dv-list').innerHTML=h||`<div class="card" style="text-align:center;padding:32px"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;font-weight:700;color:var(--t1);margin-bottom:6px">Aucun devis pour l'instant</div><div style="font-size:13px;color:var(--t4);margin-bottom:16px">Génère ton premier devis en 30 secondes</div><button class="btn btn-p btn-sm" onclick="openNewDvModal()">+ Nouveau devis</button></div>`;
 }
 
 function createDv(){
-  const client=document.getElementById('dv-client').value.trim();
+  const selVal=document.getElementById('dv-client').value;
+  const client=selVal==='__other__'?(document.getElementById('dv-client-other')?.value.trim()||''):selVal.trim();
   const montant=parseInt(document.getElementById('dv-form').value);
-  if(!client){alert('Nom du client obligatoire');return;}
+  if(!client){alert('Choisis ou saisis un client');return;}
   const formOpt=document.getElementById('dv-form');
   const newDv={
     id:uid(),client,montant,
@@ -3886,7 +3920,8 @@ function createDv(){
   };
   if(S._pendingDevisProspectId){newDv.prospectId=S._pendingDevisProspectId;S._pendingDevisProspectId=null;}
   S.devis.push(newDv);
-  ['dv-client','dv-obj','dv-cemail','dv-cphone','dv-caddr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['dv-client','dv-client-other','dv-obj','dv-cemail','dv-cphone','dv-caddr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const r=document.getElementById('dv-client-other-row');if(r)r.style.display='none';
   sv(); closeM('m-new-dv'); rDevis();
 }
 
