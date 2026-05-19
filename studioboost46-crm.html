@@ -4817,78 +4817,130 @@ function rSante(){
 let persoOffset=0;
 function persoNav(delta){persoOffset+=delta;rPerso();}
 function getPersoMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+persoOffset);return d;}
-function savePerso(field,val){
-  const m=getPersoMonth();
-  const key=m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0');
-  if(!S.perso[key])S.perso[key]={};
-  S.perso[key][field]=Number(val)||0; sv();
+
+function savePersoDay(field,val){
+  const today=new Date().toISOString().slice(0,10);
+  if(!S.perso[today])S.perso[today]={};
+  const v=Number(val)||0;
+  S.perso[today][field]=v;
+  sv();rPerso();
 }
+
 function rPerso(){
   const m=getPersoMonth();
-  const key=m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0');
+  const yr=m.getFullYear(),mo=m.getMonth();
+  const monthKey=yr+'-'+String(mo+1).padStart(2,'0');
   const lbl=m.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
   const el=document.getElementById('perso-month-label');
   if(el) el.textContent=lbl.charAt(0).toUpperCase()+lbl.slice(1);
   const grid=document.getElementById('perso-grid'); if(!grid) return;
-  const cur=S.perso[key]||{};
 
-  // Mois précédent pour comparaison
-  const mp=new Date(m);mp.setMonth(mp.getMonth()-1);
-  const keyP=mp.getFullYear()+'-'+String(mp.getMonth()+1).padStart(2,'0');
-  const prev=S.perso[keyP]||{};
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayIso=today.toISOString().slice(0,10);
+  const isCurrentMonth=today.getFullYear()===yr&&today.getMonth()===mo;
 
-  const indicateurs=[
-    {k:'energie',lbl:'⚡ Énergie',desc:'1 = épuisée · 5 = au top',type:'scale'},
-    {k:'sommeil',lbl:'😴 Qualité du sommeil',desc:'1 = mauvaise · 5 = excellente',type:'scale'},
-    {k:'humeur',lbl:'😊 Humeur générale',desc:'1 = maussade · 5 = excellente',type:'scale'},
-    {k:'chargeMentale',lbl:'🧠 Charge mentale',desc:'1 = légère · 5 = très lourde',type:'scale'},
-    {k:'focus',lbl:'🎯 Focus & discipline',desc:'1 = dispersée · 5 = ultra focalisée',type:'scale'},
-    {k:'sport',lbl:'🏃 Sport ce mois',desc:'Nombre de séances dans le mois',type:'number',unit:'séances',min:0,max:40},
+  const monthDays=Object.keys(S.perso||{}).filter(k=>k.length===10&&k.startsWith(monthKey+'-'));
+  const inds=[
+    {k:'energie',lbl:'⚡ Énergie',desc:'1=épuisée · 5=au top'},
+    {k:'sommeil',lbl:'😴 Sommeil',desc:'1=mauvais · 5=excellent'},
+    {k:'humeur',lbl:'😊 Humeur',desc:'1=maussade · 5=excellente'},
+    {k:'chargeMentale',lbl:'🧠 Charge mentale',desc:'1=légère · 5=très lourde'},
+    {k:'focus',lbl:'🎯 Focus',desc:'1=dispersée · 5=focalisée'},
   ];
 
-  grid.innerHTML='<div style="display:grid;gap:14px">'+indicateurs.map(ind=>{
-    const val=cur[ind.k]||0;
-    const pval=prev[ind.k];
-    let deltaHtml='';
-    if(pval!==undefined&&val&&pval){
-      const d=val-pval;
-      if(d!==0) deltaHtml=`<span style="font-size:11px;color:${d>0?'var(--green)':'var(--red)'}"> ${d>0?'▲':'▼'}${Math.abs(d)}</span>`;
-    }
+  function avg(k){const v=monthDays.map(d=>(S.perso[d]||{})[k]).filter(x=>x>0);return v.length?Math.round(v.reduce((s,x)=>s+x,0)/v.length*10)/10:null;}
+  function sportTotal(){return monthDays.reduce((s,d)=>s+((S.perso[d]||{}).sport||0),0);}
 
-    let inputHtml;
-    if(ind.type==='number'){
-      inputHtml=`
-        <div style="display:flex;align-items:center;gap:14px;margin-top:10px">
-          <input class="inp" type="number" min="${ind.min}" max="${ind.max}" value="${val||''}" placeholder="0"
-            oninput="savePerso('${ind.k}',this.value)"
-            style="font-family:'Fredoka',sans-serif;font-size:28px;font-weight:700;color:var(--purple-dark);width:90px;padding:4px 10px">
-          <div>
-            <div style="font-size:12px;color:var(--t3)">${ind.unit}</div>
-            ${pval!==undefined?`<div style="font-size:11px;color:var(--t4)">Mois préc. : ${pval}${deltaHtml}</div>`:''}
-          </div>
-        </div>`;
-    } else {
-      const col=val>=4?'var(--green)':val>=3?'var(--gold)':'var(--orange)';
-      inputHtml=`
-        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
-          <div style="font-family:'Fredoka',sans-serif;font-size:32px;font-weight:700;color:${val?col:'var(--t4)'};min-width:36px">${val||'—'}</div>
-          <div style="flex:1">
-            <div style="display:flex;gap:8px">
-              ${[1,2,3,4,5].map(n=>`<button onclick="savePerso('${ind.k}',${n});rPerso()" style="flex:1;height:34px;border-radius:var(--rs);border:2px solid ${n<=val?'var(--accent)':'var(--b1)'};background:${n<=val?'var(--acbg)':'transparent'};cursor:pointer;font-size:14px;font-weight:700;color:${n<=val?'var(--accent)':'var(--t4)'};transition:all .15s">${n}</button>`).join('')}
+  const mp=new Date(m);mp.setMonth(mp.getMonth()-1);
+  const mkP=mp.getFullYear()+'-'+String(mp.getMonth()+1).padStart(2,'0');
+  const prevDays=Object.keys(S.perso||{}).filter(k=>k.length===10&&k.startsWith(mkP+'-'));
+  function avgP(k){const v=prevDays.map(d=>(S.perso[d]||{})[k]).filter(x=>x>0);return v.length?Math.round(v.reduce((s,x)=>s+x,0)/v.length*10)/10:null;}
+  function sportTotalP(){return prevDays.reduce((s,d)=>s+((S.perso[d]||{}).sport||0),0);}
+
+  const todayData=(S.perso||{})[todayIso]||{};
+  let html='';
+
+  // ── CHECK-IN DU JOUR ──
+  if(isCurrentMonth){
+    const tlbl=today.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div class="card-title">📅 Check-in — ${tlbl.charAt(0).toUpperCase()+tlbl.slice(1)}</div>
+      <div style="display:grid;gap:10px;margin-top:10px">
+        ${inds.map(ind=>{
+          const val=todayData[ind.k]||0;
+          const col=val>=4?'var(--green)':val>=3?'var(--gold)':'var(--orange)';
+          return`<div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <span style="font-size:13px;font-weight:600;color:var(--t1)">${ind.lbl}</span>
+              <span style="font-family:Fredoka,sans-serif;font-size:20px;font-weight:700;color:${val?col:'var(--t4)'}">${val||'—'}</span>
             </div>
-            ${pval!==undefined?`<div style="font-size:11px;color:var(--t4);margin-top:4px">Mois préc. : ${pval}${deltaHtml}</div>`:''}
-          </div>
-        </div>`;
-    }
-
-    return `<div class="card card-sm">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--t1)">${ind.lbl}</div>
-        <div style="font-size:11px;color:var(--t4);margin-top:2px">${ind.desc}</div>
+            <div style="display:flex;gap:5px">
+              ${[1,2,3,4,5].map(n=>`<button onclick="savePersoDay('${ind.k}',${val===n?0:n})" style="flex:1;height:38px;border-radius:var(--rs);border:2px solid ${n<=val?'var(--accent)':'var(--b1)'};background:${n<=val?'var(--acbg)':'transparent'};cursor:pointer;font-size:15px;font-weight:700;color:${n<=val?'var(--accent)':'var(--t4)'};touch-action:manipulation">${n}</button>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--t1);margin-bottom:6px">🏃 Sport aujourd'hui</div>
+          <button onclick="savePersoDay('sport',${todayData.sport?0:1})" style="width:100%;padding:10px;border-radius:var(--rs);border:2px solid ${todayData.sport?'var(--green)':'var(--b1)'};background:${todayData.sport?'rgba(90,158,47,.1)':'transparent'};cursor:pointer;font-size:13px;font-weight:700;color:${todayData.sport?'var(--green)':'var(--t3)'};touch-action:manipulation">
+            ${todayData.sport?'✅ Oui, j\'ai fait du sport !':'○ Non — Appuie si tu t\'es entraînée'}
+          </button>
+        </div>
       </div>
-      ${inputHtml}
     </div>`;
-  }).join('')+'</div>';
+  }
+
+  // ── BILAN DU MOIS ──
+  const daysLogged=monthDays.length;
+  html+=`<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">📊 Bilan du mois</div>
+      <div style="font-size:12px;color:var(--t3)">${daysLogged} jour${daysLogged>1?'s':''} renseigné${daysLogged>1?'s':''}</div>
+    </div>
+    ${!daysLogged?`<div style="font-size:13px;color:var(--t4);text-align:center;padding:16px 0">Aucune donnée ce mois.<br><span style="font-size:11px">Fais ton premier check-in du jour ☝️</span></div>`
+    :`<div style="display:grid;gap:6px">
+      ${inds.map(ind=>{
+        const a=avg(ind.k),ap=avgP(ind.k);
+        const col=a>=4?'var(--green)':a>=3?'var(--gold)':'var(--orange)';
+        let delta='';
+        if(a!==null&&ap!==null){const d=Math.round((a-ap)*10)/10;if(d!==0)delta=`<span style="font-size:11px;color:${d>0?'var(--green)':'var(--red)'};margin-left:5px">${d>0?'▲':'▼'}${Math.abs(d)}</span>`;}
+        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--b1)">
+          <span style="font-size:13px;color:var(--t1)">${ind.lbl}</span>
+          <span style="font-family:Fredoka,sans-serif;font-size:18px;font-weight:700;color:${a!==null?col:'var(--t4)'}">${a!==null?a+'/5':'—'}${delta}</span>
+        </div>`;
+      }).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+        <span style="font-size:13px;color:var(--t1)">🏃 Sport</span>
+        <span style="font-family:Fredoka,sans-serif;font-size:18px;font-weight:700;color:var(--accent)">${sportTotal()} j.${(()=>{const sp=sportTotalP();const d=sportTotal()-sp;return sp&&d!==0?` <span style="font-size:11px;color:${d>0?'var(--green)':'var(--red)'}">${d>0?'▲':'▼'}${Math.abs(d)}</span>`:'';})()} <span style="font-size:11px;color:var(--t4);font-family:DM Sans,sans-serif">/ ${daysLogged} jours</span></span>
+      </div>
+    </div>`}
+  </div>`;
+
+  // ── ENTRÉES DU MOIS ──
+  if(daysLogged>0){
+    const sorted=[...monthDays].sort((a,b)=>b.localeCompare(a));
+    html+=`<div class="card">
+      <div class="card-title" style="margin-bottom:10px">📆 Historique</div>
+      <div style="display:grid;gap:4px">
+        ${sorted.map(d=>{
+          const data=S.perso[d]||{};
+          const dt=new Date(d+'T12:00:00');
+          const dlbl=dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+          const vals=inds.map(i=>data[i.k]).filter(v=>v>0);
+          const a=vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10:null;
+          const col=a>=4?'var(--green)':a>=3?'var(--gold)':'var(--orange)';
+          const dots=inds.map(i=>{const v=data[i.k]||0;const c=v>=4?'var(--green)':v>=3?'var(--gold)':v>=1?'var(--orange)':'var(--b2)';return`<div style="width:8px;height:8px;border-radius:50%;background:${c}" title="${i.lbl}: ${v||'—'}"></div>`;}).join('');
+          return`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--b1)">
+            <span style="font-size:12px;color:var(--t2);font-weight:600;min-width:80px">${dlbl}${d===todayIso?' <span style="font-size:10px;color:var(--accent)">·auj.</span>':''}</span>
+            <div style="display:flex;gap:4px;align-items:center;flex:1">${dots}</div>
+            ${data.sport?'<span style="font-size:11px">🏃</span>':''}
+            <span style="font-size:13px;font-weight:700;color:${a?col:'var(--t4)'};min-width:32px;text-align:right">${a?a:'—'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  grid.innerHTML=html;
 }
 
 /* ── IDÉES DE CONTENU ── */
