@@ -1518,7 +1518,8 @@ let _supa=null, _user=null, _loginMode='login';
 
 function ldLocal(){try{return JSON.parse(localStorage.getItem(SK))||{};}catch{return{};}}
 function sv(){
-  try{localStorage.setItem(SK,JSON.stringify(S));}catch{}
+  const now=new Date().toISOString();
+  try{localStorage.setItem(SK,JSON.stringify(S));localStorage.setItem('sb46_ts',now);}catch{}
   if(_user&&_user.id&&_user._token){
     const tok=_user._token;
     fetch(`${SUPABASE_URL}/rest/v1/cockpit_data`,{
@@ -1529,7 +1530,7 @@ function sv(){
         'Content-Type':'application/json',
         'Prefer':'resolution=merge-duplicates,return=minimal'
       },
-      body:JSON.stringify({user_id:_user.id,data:S,updated_at:new Date().toISOString()})
+      body:JSON.stringify({user_id:_user.id,data:S,updated_at:now})
     }).catch(()=>{});
   }
 }
@@ -3552,24 +3553,24 @@ function rTresos(){
     const d=parseFrDate(p.paidDate);
     return d&&d.getFullYear()===yr&&d.getMonth()===mo;
   });
-  const totEnc=enc.reduce((s,p)=>s+(p.amount||0),0);
+  const totEnc=Math.round(enc.reduce((s,p)=>s+(p.amount||0),0)*100)/100;
 
   // CA attendu (en attente, dueDate dans ce mois)
   const att=S.paiements.filter(p=>{
     if(p.paid||!p.dueDate)return false;
     return p.dueDate.startsWith(key);
   });
-  const totAtt=att.reduce((s,p)=>s+(p.amount||0),0);
+  const totAtt=Math.round(att.reduce((s,p)=>s+(p.amount||0),0)*100)/100;
 
   // Charges du mois (mensuelles + ponctuelles de ce mois)
   const charges=(S.charges||[]).filter(c=>c.type==='mensuel'||c.month===key);
-  const totCh=charges.reduce((s,c)=>s+(c.amount||0),0);
+  const totCh=Math.round(charges.reduce((s,c)=>s+(c.amount||0),0)*100)/100;
 
   // Solde prévisionnel
   const taux=(S.reglages.tauxProvision||22)/100;
-  const provision=Math.round(totEnc*taux);
-  const soldeBrut=totEnc-totCh;
-  const soldeLibre=soldeBrut-provision;
+  const provision=Math.round(totEnc*taux*100)/100;
+  const soldeBrut=Math.round((totEnc-totCh)*100)/100;
+  const soldeLibre=Math.round((soldeBrut-provision)*100)/100;
 
   // Render revenus
   const rEl=document.getElementById('treso-revenus');
@@ -5392,16 +5393,24 @@ async function initApp(){
 async function loadFromSupa(){
   try{
     const tok=_user?._token||'';
-    const r=await fetch(`${SUPABASE_URL}/rest/v1/cockpit_data?user_id=eq.${_user.id}&select=data`,{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/cockpit_data?user_id=eq.${_user.id}&select=data,updated_at`,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+tok,'Accept':'application/json'}
     });
     const rows=await r.json();
     if(rows&&rows[0]&&rows[0].data){
-      initS(rows[0].data);
+      const supaTs=rows[0].updated_at||'';
+      const localTs=localStorage.getItem('sb46_ts')||'';
+      if(localTs>supaTs){
+        // localStorage plus récent (sauvegarde Supabase pas encore complète) → on l'utilise et on re-synchro
+        initS(ldLocal());
+        sv();
+      } else {
+        initS(rows[0].data);
+      }
     } else {
       sv();
     }
-  }catch(e){}
+  }catch(e){initS(ldLocal());}
   rDash();rSidebar();
 }
 
