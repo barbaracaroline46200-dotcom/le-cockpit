@@ -367,7 +367,10 @@ select.inp option{background:var(--white)}
 <!-- MOBILE HEADER -->
 <div id="mobile-header">
   <div class="mob-logo">Le <span>Cockpit</span></div>
-  <div class="mob-badge" id="mob-mrr-badge">— MRR</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="mob-badge" id="mob-mrr-badge">— MRR</div>
+    <button onclick="reloadApp()" title="Rafraîchir" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:16px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">🔄</button>
+  </div>
 </div>
 
 <!-- MOBILE BOTTOM NAV -->
@@ -457,6 +460,7 @@ select.inp option{background:var(--white)}
     <div style="display:flex;gap:4px;margin-top:8px">
       <button onclick="exportData()" style="flex:1;background:rgba(20,184,166,.18);color:var(--accent);border:none;font-size:11px;padding:6px 4px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600">💾 Sauvegarder</button>
       <button onclick="importData()" style="flex:1;background:rgba(255,255,255,.07);color:rgba(255,255,255,.45);border:none;font-size:11px;padding:6px 4px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600">📥 Restaurer</button>
+      <button onclick="reloadApp()" title="Rafraîchir l'appli" style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.45);border:none;font-size:14px;padding:6px 8px;border-radius:6px;cursor:pointer;font-family:inherit">🔄</button>
     </div>
     <div style="margin-top:8px">
       <button onclick="doLogout()" style="width:100%;background:rgba(234,57,46,.15);color:rgba(234,57,46,.8);border:none;font-size:11px;padding:7px 4px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600">🔒 Se déconnecter</button>
@@ -817,12 +821,12 @@ select.inp option{background:var(--white)}
       <div class="card-title" style="margin-bottom:0">Année</div>
       <input class="inp" type="number" id="vis-trim-annee" min="2024" max="2030" style="width:90px;padding:4px 10px;font-weight:700" oninput="rTrim()">
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="vis-trim-grid"></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px" id="vis-trim-grid"></div>
   </div>
 
   <!-- SWOT -->
   <div id="vis-view-swot" class="hidden">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="vis-swot-grid"></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px" id="vis-swot-grid"></div>
   </div>
 
   <!-- JOURNAL DÉCISIONS -->
@@ -1384,35 +1388,48 @@ select.inp option{background:var(--white)}
 <div class="overlay hidden" id="m-new-pj">
   <div class="modal">
     <div class="modal-hd"><div class="modal-title">🚀 Nouveau projet</div><button class="btn btn-g btn-sm" onclick="closeM('m-new-pj')">✕</button></div>
+    <div class="frow"><label class="inp-label">Nom du projet *</label><input class="inp" id="npj-name" placeholder="Ex : Refonte site, Campagne printemps…"></div>
+    <div class="frow"><label class="inp-label">Description / Objectif</label><textarea class="inp" id="npj-notes" rows="2" placeholder="Ce que ce projet doit accomplir…"></textarea></div>
     <div class="fgrid">
-      <div class="frow" style="grid-column:1/-1"><label class="inp-label">Nom du projet *</label><input class="inp" id="npj-name" placeholder="Ex : Site Resto La Bonne Auberge"></div>
-      <div class="frow" style="grid-column:1/-1">
-        <label class="inp-label">Lier à un prospect existant</label>
-        <select class="inp" id="npj-prospect" onchange="npjFillFromProspect(this.value)">
-          <option value="">— Aucun prospect lié —</option>
+      <div class="frow"><label class="inp-label">Deadline</label><input class="inp" type="date" id="npj-deadline"></div>
+      <div class="frow"><label class="inp-label">Statut</label>
+        <select class="inp" id="npj-status">
+          <option value="actif">▶ En cours</option>
+          <option value="pause">⏸ En pause</option>
+          <option value="todo">📋 À démarrer</option>
         </select>
       </div>
-      <div class="frow"><label class="inp-label">Secteur</label><input class="inp" id="npj-sector" placeholder="Restaurant, Plombier..."></div>
-      <div class="frow"><label class="inp-label">Téléphone</label><input class="inp" id="npj-phone" placeholder="06 XX XX XX XX"></div>
-      <div class="frow"><label class="inp-label">Email</label><input class="inp" id="npj-email" placeholder="contact@..."></div>
     </div>
-    <div class="fgrid">
-      <div class="frow"><label class="inp-label">Formule</label>
-        <select class="inp" id="npj-form">
-          <option value="290">Essentiel — 290€</option>
-          <option value="590" selected>Pro — 590€</option>
-          <option value="890">Pro+ — 890€</option>
-        </select>
+    <div class="frow">
+      <label class="inp-label">Lier à un client / prospect (optionnel)</label>
+      <select class="inp" id="npj-prospect" onchange="npjTogglePay(this.value)">
+        <option value="">— Aucun client lié —</option>
+      </select>
+    </div>
+    <div id="npj-pay-bloc" style="display:none;background:var(--s1);border:1px solid var(--b2);border-radius:10px;padding:12px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--t2);cursor:pointer">
+        <input type="checkbox" id="npj-create-pay" onchange="npjTogglePayOptions(this.checked)" style="width:16px;height:16px">
+        Créer les paiements associés
+      </label>
+      <div id="npj-pay-options" style="display:none;margin-top:10px">
+        <div class="fgrid">
+          <div class="frow"><label class="inp-label">Formule</label>
+            <select class="inp" id="npj-form">
+              <option value="290">Essentiel — 290€</option>
+              <option value="590" selected>Pro — 590€</option>
+              <option value="890">Pro+ — 890€</option>
+            </select>
+          </div>
+          <div class="frow"><label class="inp-label">Paiement</label>
+            <select class="inp" id="npj-split"><option value="0">50% / 50%</option><option value="1">30% / 35% / 35%</option></select>
+          </div>
+        </div>
+        <div class="frow"><label class="inp-label">Maintenance 29€/mois ?</label>
+          <select class="inp" id="npj-maint"><option value="0">Non</option><option value="1">Oui</option></select>
+        </div>
       </div>
-      <div class="frow"><label class="inp-label">Paiement en 3x ?</label>
-        <select class="inp" id="npj-split"><option value="0">Non — 50% / 50%</option><option value="1">Oui — 30% / 35% / 35%</option></select>
-      </div>
     </div>
-    <div class="frow"><label class="inp-label">Maintenance 29€/mois ?</label>
-      <select class="inp" id="npj-maint"><option value="0">Non</option><option value="1">Oui</option></select>
-    </div>
-    <div class="frow"><label class="inp-label">Notes</label><textarea class="inp" id="npj-notes" rows="2" placeholder="Infos complémentaires..."></textarea></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="btn btn-g" onclick="closeM('m-new-pj')">Annuler</button>
       <button class="btn btn-p" onclick="createNewPj()">Créer le projet</button>
     </div>
@@ -2812,6 +2829,10 @@ function changeProsStatus(id,status){
   const p=S.prospects.find(x=>x.id===id); if(!p) return;
   p.status=status;
   p.signed=(status==='client');
+  // Réinitialise les compteurs de relance pour éviter que checkDormants() ne re-bascule en dormant
+  if(status!=='dormant'){
+    p.relanceSent=false; p.relanceDate=null;
+  }
   if(!p.history) p.history=[];
   p.history.push({date:new Date().toLocaleDateString('fr-FR'),type:'note',text:'Statut → '+statLbl(status)});
   sv(); rPros(); rStatusBar(id); rPipeline(id);
@@ -3466,10 +3487,10 @@ function rPay(){
 
   const todayPay=new Date(); todayPay.setHours(0,0,0,0);
   document.getElementById('pay-pend').innerHTML=pend.length
-    ?pend.map(p=>{const overdue=p.dueDate&&new Date(p.dueDate)<todayPay;return`<div class="pay-blk${overdue?' overdue':''}">
+    ?pend.map(p=>{const overdue=p.dueDate&&new Date(p.dueDate)<todayPay;const pj=p.projetId?(S.projets||[]).find(x=>x.id===p.projetId):null;const clientName=p.client||(pj?pj.name:'—');const clientLink=pj?`<span onclick="openPjDetail('${pj.id}')" style="cursor:pointer;color:var(--accent);text-decoration:underline dotted">${clientName}</span>`:`<span>${clientName}</span>`;return`<div class="pay-blk${overdue?' overdue':''}">
   <div class="pay-amt" style="color:${overdue?'var(--red)':'#f59e0b'}">${p.amount}€</div>
   <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--t2)">${p.label}${overdue?` <span style="font-size:10px;font-weight:700;color:var(--red);background:rgba(234,57,46,.1);padding:2px 7px;border-radius:99px;margin-left:4px">⚠️ EN RETARD</span>`:''}</div>
-  <div style="font-size:11px;color:var(--t3);margin-top:2px">Client : ${p.client}</div>
+  <div style="font-size:11px;color:var(--t3);margin-top:2px">👤 ${clientLink}${pj&&pj.name!==clientName?` · <span onclick="openPjDetail('${pj.id}')" style="cursor:pointer;color:var(--t4);font-size:10px">📁 ${pj.name}</span>`:''}</div>
   <div style="display:flex;align-items:center;gap:6px;margin-top:5px"><label style="font-size:10px;color:var(--t4);white-space:nowrap">📅 Échéance :</label><input type="date" style="font-size:11px;padding:2px 6px;border:1px solid var(--b2);border-radius:6px;color:var(--t2);background:var(--s1);font-family:inherit" value="${p.dueDate||''}" onchange="setDueDate('${p.id}',this.value)"></div></div>
   <button class="btn btn-s btn-sm" onclick="markPaid('${p.id}')">✅ Reçu</button>
     </div>`}).join('')
@@ -4183,75 +4204,87 @@ function renderCustomTasks(){
 function openNewPjModal(){
   const sel=document.getElementById('npj-prospect');
   if(sel){
-    const prospects=S.prospects.filter(p=>p.status!=='perdu'&&p.status!=='dormant').sort((a,b)=>a.name.localeCompare(b.name));
-    sel.innerHTML='<option value="">— Aucun prospect lié —</option>'+
+    const prospects=S.prospects.filter(p=>p.status!=='perdu').sort((a,b)=>a.name.localeCompare(b.name));
+    sel.innerHTML='<option value="">— Aucun client lié —</option>'+
       prospects.map(p=>`<option value="${p.id}">${p.name}${p.sector?' · '+p.sector:''}</option>`).join('');
     sel.value='';
   }
-  ['npj-sector','npj-phone','npj-email'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['npj-name','npj-notes','npj-deadline'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const st=document.getElementById('npj-status');if(st)st.value='actif';
+  const cp=document.getElementById('npj-create-pay');if(cp)cp.checked=false;
+  const po=document.getElementById('npj-pay-options');if(po)po.style.display='none';
+  const pb=document.getElementById('npj-pay-bloc');if(pb)pb.style.display='none';
   openM('m-new-pj');
 }
 
-function npjFillFromProspect(pid){
+function npjTogglePay(pid){
+  const pb=document.getElementById('npj-pay-bloc');
+  if(pb) pb.style.display=pid?'block':'none';
   if(!pid){
-    ['npj-sector','npj-phone','npj-email'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-    return;
+    const cp=document.getElementById('npj-create-pay');if(cp)cp.checked=false;
+    const po=document.getElementById('npj-pay-options');if(po)po.style.display='none';
   }
-  const p=S.prospects.find(x=>x.id===pid); if(!p) return;
-  if(document.getElementById('npj-sector')) document.getElementById('npj-sector').value=p.sector||'';
-  if(document.getElementById('npj-phone'))  document.getElementById('npj-phone').value=p.phone||'';
-  if(document.getElementById('npj-email'))  document.getElementById('npj-email').value=p.email||'';
-  if(!document.getElementById('npj-name').value.trim())
-    document.getElementById('npj-name').value='Site '+p.name;
+}
+
+function npjTogglePayOptions(checked){
+  const po=document.getElementById('npj-pay-options');
+  if(po) po.style.display=checked?'block':'none';
 }
 
 function createNewPj(){
   const name=document.getElementById('npj-name').value.trim();
   if(!name){alert('Nom du projet obligatoire');return;}
-  const selPros=document.getElementById('npj-prospect');
-  const linkedPid=selPros?selPros.value:'';
-  const formEl=document.getElementById('npj-form');
-  const montant=parseInt(formEl.value);
-  const formule=formEl.options[formEl.selectedIndex].text;
-  const split=document.getElementById('npj-split').value==='1';
-  const maintenance=document.getElementById('npj-maint').value==='1';
-
-  let pid=linkedPid||null;
+  const linkedPid=document.getElementById('npj-prospect').value||'';
   const linkedProspect=linkedPid?S.prospects.find(x=>x.id===linkedPid):null;
+  const createPay=document.getElementById('npj-create-pay')?.checked&&linkedPid;
+  const deadline=document.getElementById('npj-deadline').value||null;
+  const status=document.getElementById('npj-status').value||'actif';
+  const notes=document.getElementById('npj-notes').value.trim();
+
+  let formule='',montant=0,maintenance=false,split=false;
+  if(createPay){
+    const formEl=document.getElementById('npj-form');
+    montant=parseInt(formEl.value);
+    formule=formEl.options[formEl.selectedIndex].text;
+    split=document.getElementById('npj-split').value==='1';
+    maintenance=document.getElementById('npj-maint').value==='1';
+  }
+
   if(linkedProspect){
-    linkedProspect.signed=true;
-    linkedProspect.maintenance=maintenance;
+    if(createPay) linkedProspect.signed=true;
+    if(maintenance) linkedProspect.maintenance=true;
     linkedProspect.history=linkedProspect.history||[];
     linkedProspect.history.push({date:new Date().toLocaleDateString('fr-FR'),text:'Projet créé : '+name});
   }
 
   const pj={
-    id:uid(),prospectId:pid,
+    id:uid(),prospectId:linkedPid||null,
     name,
-    client:linkedProspect?linkedProspect.name:(document.getElementById('npj-sector')?'':''),
-    sector:document.getElementById('npj-sector').value.trim(),
-    phone:document.getElementById('npj-phone').value.trim(),
-    email:document.getElementById('npj-email').value.trim(),
-    formule,montant,maintenance,split,steps:{},checklist:{},docs:{},
-    questionnaire:{},notes:[],taches:[],
-    createdAt:new Date().toISOString().split('T')[0],status:'actif',
+    client:linkedProspect?linkedProspect.name:'',
+    formule,montant,maintenance,split,
+    deadline,status,
+    steps:{},checklist:{},docs:{},questionnaire:{},
+    notes:notes?[{date:new Date().toLocaleDateString('fr-FR'),text:notes}]:[],
+    taches:[],
+    createdAt:new Date().toISOString().split('T')[0],
   };
   S.projets.push(pj);
 
-  if(split){
-    const p1=Math.round(montant*.3),p2=Math.round(montant*.35),p3=montant-p1-p2;
-    S.paiements.push({id:uid(),projetId:pj.id,client:name,label:'1er versement 30%',amount:p1,paid:false,dueDate:null,type:'acompte'});
-    S.paiements.push({id:uid(),projetId:pj.id,client:name,label:'2ème versement 35%',amount:p2,paid:false,dueDate:null,type:'milieu'});
-    S.paiements.push({id:uid(),projetId:pj.id,client:name,label:'3ème versement 35%',amount:p3,paid:false,dueDate:null,type:'solde'});
-  } else {
-    const a=Math.round(montant*.5);
-    S.paiements.push({id:uid(),projetId:pj.id,client:name,label:'Acompte 50%',amount:a,paid:false,dueDate:null,type:'acompte'});
-    S.paiements.push({id:uid(),projetId:pj.id,client:name,label:'Solde 50%',amount:montant-a,paid:false,dueDate:null,type:'solde'});
+  if(createPay){
+    const clientLabel=linkedProspect?linkedProspect.name:name;
+    if(split){
+      const p1=Math.round(montant*.3),p2=Math.round(montant*.35),p3=montant-p1-p2;
+      S.paiements.push({id:uid(),projetId:pj.id,client:clientLabel,label:'1er versement 30%',amount:p1,paid:false,dueDate:null,type:'acompte'});
+      S.paiements.push({id:uid(),projetId:pj.id,client:clientLabel,label:'2ème versement 35%',amount:p2,paid:false,dueDate:null,type:'milieu'});
+      S.paiements.push({id:uid(),projetId:pj.id,client:clientLabel,label:'3ème versement 35%',amount:p3,paid:false,dueDate:null,type:'solde'});
+    } else {
+      const a=Math.round(montant*.5);
+      S.paiements.push({id:uid(),projetId:pj.id,client:clientLabel,label:'Acompte 50%',amount:a,paid:false,dueDate:null,type:'acompte'});
+      S.paiements.push({id:uid(),projetId:pj.id,client:clientLabel,label:'Solde 50%',amount:montant-a,paid:false,dueDate:null,type:'solde'});
+    }
   }
 
   sv(); closeM('m-new-pj'); rProjets(); rSidebar();
-  ['npj-name','npj-sector','npj-phone','npj-email','npj-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const selPj=document.getElementById('npj-prospect');if(selPj)selPj.value='';
   setTimeout(()=>openPjM(pj.id),100);
 }
 
@@ -4508,6 +4541,11 @@ function closeM(id){document.getElementById(id)?.classList.add('hidden');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('overlay'))e.target.classList.add('hidden');});
 
 // ── EXPORT / IMPORT ──
+function reloadApp(){
+  sv();
+  location.reload();
+}
+
 function exportData(){
   const obj={
     prospects:S.prospects,projets:S.projets,paiements:S.paiements,
@@ -4675,12 +4713,12 @@ function rTrim(){
   const statCol={todo:'var(--t4)',encours:'var(--accent)',fait:'var(--green)'};
   grid.innerHTML=['Q1','Q2','Q3','Q4'].map(q=>{
     const qObjs=(S.objectifsQ||[]).filter(o=>o.trim===q&&o.annee===annee);
-    return `<div class="card">
+    return `<div class="card" style="min-width:0;overflow:hidden">
       <div class="card-title" style="font-size:13px">${q==='Q1'?'Jan–Mar':q==='Q2'?'Avr–Jun':q==='Q3'?'Jul–Sep':'Oct–Déc'} <span style="color:var(--accent)">${q}</span></div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         ${qObjs.length?qObjs.map(o=>`
           <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--s2);border-radius:var(--rs)">
-            <div style="flex:1;font-size:13px;color:var(--t1)">${o.texte}</div>
+            <div style="flex:1;font-size:13px;color:var(--t1);overflow-wrap:break-word;word-break:break-word;min-width:0">${o.texte}</div>
             <button onclick="cycleObjQ('${o.id}')" style="font-size:10px;font-weight:700;background:none;border:1px solid ${statCol[o.statut]};color:${statCol[o.statut]};border-radius:99px;padding:2px 8px;cursor:pointer;white-space:nowrap">${statLbl[o.statut]}</button>
             <button onclick="delObjQ('${o.id}')" style="background:none;border:none;color:var(--t4);cursor:pointer;font-size:13px">✕</button>
           </div>`).join(''):'<div style="font-size:12px;color:var(--t4);font-style:italic">Aucun objectif pour ce trimestre</div>'}
@@ -4716,13 +4754,13 @@ function rSwot(){
     {k:'menaces',lbl:'🌩 Menaces',col:'var(--red)',bg:'var(--redbg)'},
   ];
   grid.innerHTML=cats.map(c=>`
-    <div class="card" style="border-left:4px solid ${c.col};background:${c.bg}">
+    <div class="card" style="border-left:4px solid ${c.col};background:${c.bg};min-width:0;overflow:hidden">
       <div class="card-title" style="color:${c.col}">${c.lbl}</div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
         ${(S.swot[c.k]||[]).map(item=>`
           <div style="display:flex;align-items:center;gap:6px;font-size:13px">
             <span style="color:${c.col};flex-shrink:0">▸</span>
-            <span style="flex:1">${item.texte}</span>
+            <span style="flex:1;overflow-wrap:break-word;word-break:break-word;min-width:0">${item.texte}</span>
             <button onclick="delSwot('${c.k}','${item.id}')" style="background:none;border:none;color:var(--t4);cursor:pointer;font-size:12px">✕</button>
           </div>`).join('')}
         ${!(S.swot[c.k]||[]).length?'<div style="font-size:11px;color:var(--t4);font-style:italic">Aucun élément</div>':''}
