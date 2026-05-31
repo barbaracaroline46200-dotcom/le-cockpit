@@ -1245,6 +1245,7 @@ select.inp option{background:var(--white)}
   <div class="modal-title" id="mpj-title">Projet</div>
   <div style="display:flex;gap:8px">
   <button class="btn btn-g btn-sm" onclick="addCalEvent()">📅 Agenda</button>
+  <button class="btn btn-d btn-sm" onclick="deletePj()" title="Supprimer ce projet">🗑</button>
   <button class="btn btn-g btn-sm" onclick="closeM('m-pj-detail')">✕</button>
   </div>
     </div>
@@ -3416,6 +3417,15 @@ function addCalEvent(){
   const details=encodeURIComponent('Projet '+pj.formule+' — '+pj.montant+'EUR — studioboost46.com');
   const url='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+title+'&details='+details+'&dates='+fmt(d)+'/'+fmt(de);
   window.open(url,'_blank');
+}
+
+function deletePj(){
+  const id=S._pjid; if(!id) return;
+  const pj=S.projets.find(x=>x.id===id); if(!pj) return;
+  if(!confirm('Supprimer le projet "'+pj.name+'" ?\n\nLes paiements liés seront également supprimés. Cette action est irréversible.')) return;
+  S.projets=S.projets.filter(x=>x.id!==id);
+  S.paiements=(S.paiements||[]).filter(x=>x.projetId!==id);
+  sv(); closeM('m-pj-detail'); rProjets(); rPay(); rSidebar();
 }
 
 function linkPjToClient(pid){
