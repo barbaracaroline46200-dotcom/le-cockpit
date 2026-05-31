@@ -3484,7 +3484,7 @@ function openPjM(id){
     const pct=total?Math.round(doneCnt/total*100):0;
     document.getElementById('mpj-taches-pct').textContent=pct+'%';
     document.getElementById('mpj-taches-bar').style.width=pct+'%';
-    document.getElementById('mpj-taches-summary').textContent=total?`${doneCnt} tâche${doneCnt>1?'s':''} sur ${total} complétée${doneCnt>1?'s':''}`:' Ajoute des tâches dans l'onglet ✅ Tâches pour suivre l'avancement';
+    document.getElementById('mpj-taches-summary').textContent=total?`${doneCnt} tâche${doneCnt>1?'s':''} sur ${total} complétée${doneCnt>1?'s':''}`:"Ajoute des tâches dans l'onglet Tâches pour suivre l'avancement";
     const pros=(S.prospects||[]).find(x=>x.id===pj.prospectId);
     document.getElementById('mpj-info-interne').innerHTML=
       `📅 Créé le ${fmtD(pj.createdAt)}`+
