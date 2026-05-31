@@ -1249,18 +1249,28 @@ select.inp option{background:var(--white)}
   </div>
     </div>
 
-    <!-- Avancement étapes -->
-    <div class="card" style="margin-bottom:14px">
+    <!-- Avancement étapes (client) -->
+    <div class="card" style="margin-bottom:14px" id="mpj-bloc-steps">
   <div class="card-title">Avancement projet</div>
   <div class="steps" id="mpj-steps"></div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px" id="mpj-step-btns"></div>
     </div>
 
+    <!-- Avancement tâches (projet interne) -->
+    <div class="card" style="margin-bottom:14px;display:none" id="mpj-bloc-taches-progress">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="card-title" style="margin-bottom:0">Avancement</div>
+    <span id="mpj-taches-pct" style="font-size:13px;font-weight:700;color:var(--purple)">0%</span>
+  </div>
+  <div class="pbar"><div class="pfill" id="mpj-taches-bar" style="height:8px;width:0%;background:linear-gradient(90deg,var(--accent),var(--acl));border-radius:99px"></div></div>
+  <div id="mpj-taches-summary" style="font-size:11px;color:var(--t3);margin-top:6px"></div>
+    </div>
+
     <!-- Tabs -->
-    <div class="tabs" style="margin-bottom:14px">
-  <div class="tab active" onclick="swPjTab('infos',this)">📋 Infos & Docs</div>
-  <div class="tab" onclick="swPjTab('questionnaire',this)">📝 Questionnaire</div>
-  <div class="tab" onclick="swPjTab('creation',this)">⚡ Création site</div>
+    <div class="tabs" style="margin-bottom:14px" id="mpj-tabs">
+  <div class="tab active" onclick="swPjTab('infos',this)">📋 Infos</div>
+  <div class="tab" onclick="swPjTab('questionnaire',this)" id="mpj-tab-questionnaire">📝 Questionnaire</div>
+  <div class="tab" onclick="swPjTab('creation',this)" id="mpj-tab-creation">⚡ Création site</div>
   <div class="tab" onclick="swPjTab('taches',this)">✅ Tâches <span id="mpj-taches-badge" style="display:none;background:var(--orange);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:4px"></span></div>
   <div class="tab" onclick="swPjTab('paiements',this)">💶 Paiements</div>
   <div class="tab" onclick="swPjTab('notes',this)">📌 Notes</div>
@@ -1268,7 +1278,34 @@ select.inp option{background:var(--white)}
 
     <!-- TAB: Infos & Docs -->
     <div id="pjtab-infos">
-  <div class="g2" style="margin-bottom:14px">
+  <!-- Vue projet interne (sans client) -->
+  <div id="mpj-infos-interne" style="display:none;margin-bottom:14px">
+    <div class="card">
+      <div class="card-title">Informations projet</div>
+      <div id="mpj-info-interne" style="font-size:13px;color:var(--t2);line-height:2"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+        <div class="frow"><label class="inp-label">Description / Objectif</label><textarea class="inp" id="pj-description" rows="2" oninput="savePjField('description',this.value)" placeholder="Ce que ce projet doit accomplir…"></textarea></div>
+        <div class="fgrid">
+          <div class="frow"><label class="inp-label">Deadline</label><input class="inp" type="date" id="pj-deadline-interne" oninput="savePjField('deadline',this.value)"></div>
+          <div class="frow"><label class="inp-label">Statut</label>
+            <select class="inp" id="pj-status-interne" onchange="savePjField('status',this.value)">
+              <option value="actif">▶ En cours</option>
+              <option value="pause">⏸ En pause</option>
+              <option value="todo">📋 À démarrer</option>
+              <option value="termine">✅ Terminé</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow"><label class="inp-label">Lier à un client</label>
+          <select class="inp" id="pj-link-client" onchange="linkPjToClient(this.value)">
+            <option value="">— Aucun client lié —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Vue projet client (avec prospect lié) -->
+  <div id="mpj-infos-client" class="g2" style="margin-bottom:14px">
   <div class="card"><div class="card-title">Informations client</div><div id="mpj-info" style="font-size:13px;color:var(--t2);line-height:1.9"></div></div>
   <div class="card">
   <div class="card-title">Documents & éléments à recevoir</div>
@@ -1284,6 +1321,7 @@ select.inp option{background:var(--white)}
   </div>
   </div>
   </div>
+  </div><!-- /mpj-infos-client -->
     </div>
 
     <!-- TAB: Questionnaire -->
@@ -3380,44 +3418,79 @@ function addCalEvent(){
   window.open(url,'_blank');
 }
 
+function linkPjToClient(pid){
+  const id=S._pjid; if(!id) return;
+  const pj=S.projets.find(x=>x.id===id); if(!pj) return;
+  pj.prospectId=pid||null;
+  const pros=pid?(S.prospects||[]).find(x=>x.id===pid):null;
+  pj.client=pros?pros.name:'';
+  sv(); openPjM(id);
+}
+
 function openPjM(id){
   const pj=S.projets.find(x=>x.id===id); if(!pj) return;
   S._pjid=id;
   document.getElementById('mpj-title').textContent='🚀 '+pj.name;
 
-  const si=getPjStep(pj);
-  document.getElementById('mpj-steps').innerHTML='<div class="steps">'+PJ_STEPS.map((s,i)=>{
-    const cls=i<=si?'done':i===si+1?'cur':'';
-    return `<div class="step ${cls}"><div class="step-dot">${i<=si?'✓':i+1}</div><div class="step-lbl">${s.lbl}</div></div>`;
-  }).join('')+'</div>';
-
-  document.getElementById('mpj-step-btns').innerHTML=PJ_STEPS.map(s=>{
-    const done=!!(pj.steps&&pj.steps[s.id]);
-    return `<button class="btn btn-sm ${done?'btn-s':'btn-g'}" onclick="togStep('${id}','${s.id}')">${done?'✅':'○'} ${s.lbl}</button>`;
-  }).join('');
+  const hasClient=!!(pj.prospectId);
+  document.getElementById('mpj-bloc-steps').style.display=hasClient?'':'none';
+  document.getElementById('mpj-bloc-taches-progress').style.display=hasClient?'none':'';
+  document.getElementById('mpj-tab-questionnaire').style.display=hasClient?'':'none';
+  document.getElementById('mpj-tab-creation').style.display=hasClient?'':'none';
+  document.getElementById('mpj-infos-client').style.display=hasClient?'':'none';
+  document.getElementById('mpj-infos-interne').style.display=hasClient?'none':'';
 
   swPjTab('infos', document.querySelector('#m-pj-detail .tabs .tab'));
 
-  document.getElementById('mpj-info').innerHTML=
-    `📦 Formule : <strong>${pj.formule||'Pro'}</strong><br>`+
-    `💶 Montant : <strong>${pj.montant||590}€</strong><br>`+
-    `📅 Créé le ${fmtD(pj.createdAt)}<br>📞 ${pj.phone||'—'}<br>📧 ${pj.email||'—'}<br>`+
-    (function(){var md=document.createElement('div');md.style.marginTop='10px';var dv=document.createElement('div');dv.className='chk';dv.onclick=function(){togPjF(id,'maintenance');};var bx=document.createElement('div');bx.className='chk-box'+(pj.maintenance?' on':'');bx.textContent=pj.maintenance?'\u2713':'';var sp=document.createElement('span');sp.className='chk-lbl';sp.textContent='\uD83D\uDD27 Maintenance 29\u20AC/mois';dv.appendChild(bx);dv.appendChild(sp);md.appendChild(dv);return md.outerHTML;})();
-
-  renderDocs(id);
-
-  document.getElementById('mpj-chk').innerHTML=SITE_CHK.map((item,i)=>{
-    const done=!!(pj.checklist&&pj.checklist[i]);
-    return `<div class="chk" onclick="togChk('${id}',${i})"><div class="chk-box ${done?'on':''}">${done?'✓':''}</div><span class="chk-lbl">${item}</span></div>`;
-  }).join('');
-
-  document.getElementById('mpj-tech').innerHTML=`🌐 URL : <span style="color:var(--accent)">${pj.url||'—'}</span><br>🔗 Domaine : ${pj.domain||'—'}<br>🖥️ Hébergeur : ${pj.host||'Hostinger'}<br>📅 Deadline : ${pj.deadline||'—'}`;
-  if(document.getElementById('pj-url')) document.getElementById('pj-url').value=pj.url||'';
-  if(document.getElementById('pj-domain')) document.getElementById('pj-domain').value=pj.domain||'';
-  if(document.getElementById('pj-host')) document.getElementById('pj-host').value=pj.host||'Hostinger';
-  if(document.getElementById('pj-deadline')) document.getElementById('pj-deadline').value=pj.deadline||'';
-
-  renderQuestionnaire(id);
+  if(hasClient){
+    const si=getPjStep(pj);
+    document.getElementById('mpj-steps').innerHTML='<div class="steps">'+PJ_STEPS.map((s,i)=>{
+      const cls=i<=si?'done':i===si+1?'cur':'';
+      return `<div class="step ${cls}"><div class="step-dot">${i<=si?'✓':i+1}</div><div class="step-lbl">${s.lbl}</div></div>`;
+    }).join('')+'</div>';
+    document.getElementById('mpj-step-btns').innerHTML=PJ_STEPS.map(s=>{
+      const done=!!(pj.steps&&pj.steps[s.id]);
+      return `<button class="btn btn-sm ${done?'btn-s':'btn-g'}" onclick="togStep('${id}','${s.id}')">${done?'✅':'○'} ${s.lbl}</button>`;
+    }).join('');
+    document.getElementById('mpj-info').innerHTML=
+      `📦 Formule : <strong>${pj.formule||'Pro'}</strong><br>`+
+      `💶 Montant : <strong>${pj.montant||590}€</strong><br>`+
+      `📅 Créé le ${fmtD(pj.createdAt)}<br>📞 ${pj.phone||'—'}<br>📧 ${pj.email||'—'}<br>`+
+      (function(){var md=document.createElement('div');md.style.marginTop='10px';var dv=document.createElement('div');dv.className='chk';dv.onclick=function(){togPjF(id,'maintenance');};var bx=document.createElement('div');bx.className='chk-box'+(pj.maintenance?' on':'');bx.textContent=pj.maintenance?'✓':'';var sp=document.createElement('span');sp.className='chk-lbl';sp.textContent='🔧 Maintenance 29€/mois';dv.appendChild(bx);dv.appendChild(sp);md.appendChild(dv);return md.outerHTML;})();
+    renderDocs(id);
+    document.getElementById('mpj-chk').innerHTML=SITE_CHK.map((item,i)=>{
+      const done=!!(pj.checklist&&pj.checklist[i]);
+      return `<div class="chk" onclick="togChk('${id}',${i})"><div class="chk-box ${done?'on':''}">${done?'✓':''}</div><span class="chk-lbl">${item}</span></div>`;
+    }).join('');
+    document.getElementById('mpj-tech').innerHTML=`🌐 URL : <span style="color:var(--accent)">${pj.url||'—'}</span><br>🔗 Domaine : ${pj.domain||'—'}<br>🖥️ Hébergeur : ${pj.host||'Hostinger'}<br>📅 Deadline : ${pj.deadline||'—'}`;
+    if(document.getElementById('pj-url')) document.getElementById('pj-url').value=pj.url||'';
+    if(document.getElementById('pj-domain')) document.getElementById('pj-domain').value=pj.domain||'';
+    if(document.getElementById('pj-host')) document.getElementById('pj-host').value=pj.host||'Hostinger';
+    if(document.getElementById('pj-deadline')) document.getElementById('pj-deadline').value=pj.deadline||'';
+    renderQuestionnaire(id);
+  } else {
+    const taches=pj.taches||[];
+    const total=taches.length, doneCnt=taches.filter(t=>t.done).length;
+    const pct=total?Math.round(doneCnt/total*100):0;
+    document.getElementById('mpj-taches-pct').textContent=pct+'%';
+    document.getElementById('mpj-taches-bar').style.width=pct+'%';
+    document.getElementById('mpj-taches-summary').textContent=total?`${doneCnt} tâche${doneCnt>1?'s':''} sur ${total} complétée${doneCnt>1?'s':''}`:' Ajoute des tâches dans l'onglet ✅ Tâches pour suivre l'avancement';
+    const pros=(S.prospects||[]).find(x=>x.id===pj.prospectId);
+    document.getElementById('mpj-info-interne').innerHTML=
+      `📅 Créé le ${fmtD(pj.createdAt)}`+
+      (pj.deadline?` · ⏰ Deadline : <strong>${fmtD(pj.deadline)}</strong>`:' · <span style="color:var(--t4)">Pas de deadline</span>')+
+      (pros?`<br>👤 Client lié : <strong>${pros.name}</strong>`:'')+
+      (pj.client&&!pros?`<br>👤 Client : <strong>${pj.client}</strong>`:'');
+    if(document.getElementById('pj-description')) document.getElementById('pj-description').value=pj.description||'';
+    if(document.getElementById('pj-deadline-interne')) document.getElementById('pj-deadline-interne').value=pj.deadline||'';
+    if(document.getElementById('pj-status-interne')) document.getElementById('pj-status-interne').value=pj.status||'actif';
+    const selCl=document.getElementById('pj-link-client');
+    if(selCl){
+      const prospects=(S.prospects||[]).filter(p=>p.status!=='perdu').sort((a,b)=>a.name.localeCompare(b.name));
+      selCl.innerHTML='<option value="">— Aucun client lié —</option>'+prospects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      selCl.value=pj.prospectId||'';
+    }
+  }
   renderPjTaches(id);
 
   const pays=S.paiements.filter(x=>x.projetId===id);
